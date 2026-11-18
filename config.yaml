@@ -1,0 +1,33 @@
+sources:
+  remotive:
+    enabled: true
+    feed_url: https://remotive.com/api/remote-jobs
+  remoteok:
+    enabled: true
+    feed_url: https://remoteok.com/api
+  himalayas:
+    enabled: true
+    feed_url: https://himalayas.app/jobs/api?limit=20
+  adzuna:
+    enabled: false
+    app_id_env: ADZUNA_APP_ID
+    app_key_env: ADZUNA_APP_KEY
+
+outbound:
+  enabled: false
+  discord_webhook_env: DISCORD_WEBHOOK_URL
+
+watcher:
+  interval_seconds: 900
+
+embeddings:
+  backend: ollama
+  model: nomic-embed-text
+  ollama_url: http://localhost:11434
+  similarity_threshold: 0.35
+
+scoring:
+  backend: ollama
+  model: llama3.2
+  ollama_url: http://localhost:11434
+  timeout_seconds: 60
