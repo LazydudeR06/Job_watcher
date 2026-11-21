@@ -77,7 +77,7 @@ Audit this project against the spec below. Do NOT fix or change any application 
 - H2 .gitignore contains .env, data/, output/, logs/, __pycache__/.
 - H3 .env.example exists and lists DISCORD_BOT_TOKEN, DISCORD_JOBS_CHANNEL_ID, DISCORD_WEBHOOK_URL, ADZUNA_APP_ID, ADZUNA_APP_KEY.
 - H4 requirements.txt exists and pins versions.
-- H5 README documents: setup, `ollama pull qwen3:4b` and `ollama pull nomic-embed-text`, Windows Task Scheduler steps for an hourly `run.py --once`, and Adzuna keys. Flag any statement that contradicts the code (the README currently says Adzuna is not implemented).
+- H5 README documents: setup, `ollama pull llama3.2:3b` and `ollama pull nomic-embed-text`, Windows Task Scheduler steps for an hourly `run.py --once`, and Adzuna keys. Flag any statement that contradicts the code (the README currently says Adzuna is not implemented).
 - H6 The project has exactly one source-of-truth folder: warn if another copy exists (for example Documents\Job_finder) with different file contents.
 
 ### I. LinkedIn (expected to be NOT IMPLEMENTED for now)

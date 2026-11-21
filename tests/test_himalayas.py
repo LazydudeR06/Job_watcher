@@ -129,7 +129,7 @@ class HimalayasCollectorTest(unittest.TestCase):
                 "similarity_threshold": 0.35,
             },
             "scoring": {
-                "model": "llama3.2",
+                "model": "llama3.2:3b",
                 "ollama_url": "http://localhost:11434",
                 "timeout_seconds": 60,
             },

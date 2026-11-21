@@ -39,7 +39,7 @@ class Step4Test(unittest.TestCase):
         }
         post.return_value.raise_for_status.return_value = None
 
-        result = score_job(sample_job(), "Candidate profile", "llama3.2", "http://localhost:11434")
+        result = score_job(sample_job(), "Candidate profile", "llama3.2:3b", "http://localhost:11434")
 
         self.assertEqual(result, ScoreResult(87, "Strong Python fit."))
         self.assertEqual(post.call_args.kwargs["json"]["format"], SCORE_SCHEMA)
@@ -54,14 +54,14 @@ class Step4Test(unittest.TestCase):
                 result = score_job(
                     sample_job(),
                     "Candidate profile",
-                    "llama3.2",
+                    "llama3.2:3b",
                     "http://localhost:11434",
                 )
                 self.assertIsNone(result)
 
     @patch("jobwatcher.scorer.requests.post", side_effect=requests.ConnectionError("offline"))
     def test_request_failure_is_safe(self, post: Mock) -> None:
-        result = score_job(sample_job(), "Profile", "llama3.2", "http://localhost:11434")
+        result = score_job(sample_job(), "Profile", "llama3.2:3b", "http://localhost:11434")
         self.assertIsNone(result)
 
     def test_scores_are_persisted_for_survivors_only(self) -> None:

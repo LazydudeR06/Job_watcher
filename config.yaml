@@ -26,7 +26,7 @@ notifications:
   notification_min_score: 75
 
 watcher:
-  interval_seconds: 900
+  interval_seconds: 3600
 
 embeddings:
   backend: ollama
@@ -36,6 +36,6 @@ embeddings:
 
 scoring:
   backend: ollama
-  model: llama3.2
+  model: llama3.2:3b
   ollama_url: http://localhost:11434
   timeout_seconds: 60

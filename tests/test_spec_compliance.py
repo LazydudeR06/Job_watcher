@@ -165,7 +165,7 @@ def _minimal_config() -> dict[str, Any]:
         },
         "scoring": {
             "backend": "ollama",
-            "model": "qwen3:4b",
+            "model": "llama3.2:3b",
             "ollama_url": "http://localhost:11434",
             "timeout_seconds": 60,
         },
@@ -1625,7 +1625,7 @@ def test_h5_readme_has_required_setup_and_no_stale_claim() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     required = {
         "setup": re.search(r"^##\s+Setup\b", readme, re.I | re.M),
-        "qwen3:4b": re.search(r"ollama\s+pull\s+qwen3:4b", readme, re.I),
+        "llama3.2:3b": re.search(r"ollama\s+pull\s+llama3\.2:3b", readme, re.I),
         "nomic-embed-text": re.search(r"ollama\s+pull\s+nomic-embed-text", readme, re.I),
         "Windows Task Scheduler": re.search(r"Task Scheduler", readme, re.I),
         "hourly run.py --once": re.search(

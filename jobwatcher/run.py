@@ -13,6 +13,7 @@ from .collectors.remoteok import RemoteOKCollector
 from .filter import filter_jobs
 from .logging_config import configure_logging
 from .models import Job
+from .notifier import send_notifications
 from .reports import generate_reports
 from .scorer import score_job
 from .scheduler import run_forever
@@ -189,6 +190,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             pending_scores = get_pending_scores(connection)
             scored = 0
+            new_job_urls = {job.url for job in new_jobs}
+            newly_scored_jobs: list[dict[str, object]] = []
             for job in pending_scores:
                 result = score_job(
                     job,
@@ -209,12 +212,34 @@ def main(argv: Sequence[str] | None = None) -> int:
                         result.apply_priority,
                     )
                     scored += 1
+                    if job.url in new_job_urls:
+                        newly_scored_jobs.append(
+                            {
+                                "title": job.title,
+                                "company": job.company,
+                                "score": result.score,
+                                "apply_priority": result.apply_priority,
+                                "url": job.url,
+                            }
+                        )
                 else:
                     mark_score_gave_up(connection, job)
                     LOGGER.warning(
                         "Scoring gave up for job %s",
                         job.source_job_id,
                     )
+            notification_config = config.get("notifications", {})
+            outbound_config = config.get("outbound", {})
+            webhook_url = (
+                os.getenv("DISCORD_WEBHOOK_URL", "")
+                if outbound_config.get("enabled", False)
+                else ""
+            )
+            send_notifications(
+                newly_scored_jobs,
+                webhook_url,
+                min_score=notification_config.get("notification_min_score", 75),
+            )
             if args.verbose and pending_scores:
                 print(
                     f"Scored {scored} of {len(pending_scores)} filtered survivors"
