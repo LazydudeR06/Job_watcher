@@ -19,6 +19,12 @@ outbound:
   enabled: false
   discord_webhook_env: DISCORD_WEBHOOK_URL
 
+reports:
+  digest_min_score: 60
+
+notifications:
+  notification_min_score: 75
+
 watcher:
   interval_seconds: 900
 

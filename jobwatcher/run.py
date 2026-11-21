@@ -21,6 +21,7 @@ from .storage import (
     get_pending_scores,
     initialize_storage,
     insert_jobs,
+    mark_score_gave_up,
     update_filter_decision,
     update_job_score,
 )
@@ -155,9 +156,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         def collect_once() -> None:
             filter_unprocessed(get_pending_filters(connection))
+            new_jobs: list[Job] = []
             for collector in collectors:
-                jobs = collector.fetch()
+                try:
+                    jobs = collector.fetch()
+                except Exception as exc:
+                    source_name = getattr(
+                        collector,
+                        "name",
+                        collector.__class__.__name__,
+                    )
+                    LOGGER.exception(
+                        "Collector %s failed: %s",
+                        source_name,
+                        exc,
+                    )
+                    continue
                 inserted = insert_jobs(connection, jobs)
+                new_jobs.extend(inserted)
                 filter_unprocessed(inserted)
                 if args.verbose:
                     print(
@@ -188,13 +204,33 @@ def main(argv: Sequence[str] | None = None) -> int:
                         result.score,
                         result.rationale,
                         result.as_json(),
+                        result.reasons,
+                        result.missing_skills,
+                        result.apply_priority,
                     )
                     scored += 1
+                else:
+                    mark_score_gave_up(connection, job)
+                    LOGGER.warning(
+                        "Scoring gave up for job %s",
+                        job.source_job_id,
+                    )
             if args.verbose and pending_scores:
                 print(
                     f"Scored {scored} of {len(pending_scores)} filtered survivors"
                 )
-            generated_reports = generate_reports(connection)
+            generated_reports = generate_reports(
+                connection,
+                new_jobs=new_jobs,
+                digest_min_score=config.get("reports", {}).get(
+                    "digest_min_score",
+                    60,
+                ),
+                notification_min_score=config.get("notifications", {}).get(
+                    "notification_min_score",
+                    75,
+                ),
+            )
             if args.verbose:
                 for report_path in generated_reports:
                     print(f"Wrote report: {report_path}")

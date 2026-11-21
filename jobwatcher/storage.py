@@ -1,3 +1,4 @@
+import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
@@ -38,6 +39,10 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
         "ALTER TABLE jobs ADD COLUMN score_rationale TEXT",
         "ALTER TABLE jobs ADD COLUMN score_json TEXT",
         "ALTER TABLE jobs ADD COLUMN scored_at TEXT",
+        "ALTER TABLE jobs ADD COLUMN score_status TEXT",
+        "ALTER TABLE jobs ADD COLUMN reasons TEXT",
+        "ALTER TABLE jobs ADD COLUMN missing_skills TEXT",
+        "ALTER TABLE jobs ADD COLUMN apply_priority INTEGER",
     ):
         try:
             connection.execute(statement)
@@ -80,6 +85,10 @@ def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
             score_rationale TEXT,
             score_json TEXT,
             scored_at TEXT,
+            score_status TEXT,
+            reasons TEXT,
+            missing_skills TEXT,
+            apply_priority INTEGER,
             UNIQUE(source, source_job_id)
         )
         """
@@ -178,12 +187,18 @@ def update_job_score(
     score: int,
     rationale: str,
     score_json: str,
+    reasons: list[str] | None = None,
+    missing_skills: list[str] | None = None,
+    apply_priority: int | None = None,
 ) -> None:
-    """Persist a validated LLM score and its rationale."""
+    """Persist a validated LLM score and its structured assessment."""
+    encoded_reasons = json.dumps(reasons or [], ensure_ascii=False)
+    encoded_missing_skills = json.dumps(missing_skills or [], ensure_ascii=False)
     connection.execute(
         """
         UPDATE jobs
-        SET llm_score = ?, score_rationale = ?, score_json = ?, scored_at = ?
+        SET llm_score = ?, score_rationale = ?, score_json = ?, scored_at = ?,
+            score_status = 'scored', reasons = ?, missing_skills = ?, apply_priority = ?
         WHERE source = ? AND url = ? AND survives = 1
         """,
         (
@@ -191,6 +206,9 @@ def update_job_score(
             rationale,
             score_json,
             datetime.now().astimezone().isoformat(timespec="seconds"),
+            encoded_reasons,
+            encoded_missing_skills,
+            apply_priority,
             job.source,
             job.url,
         ),
@@ -198,15 +216,28 @@ def update_job_score(
     connection.commit()
 
 
+def mark_score_gave_up(connection: sqlite3.Connection, job: "Job") -> None:
+    """Mark a surviving job as terminal after scoring returns no result."""
+    connection.execute(
+        """
+        UPDATE jobs
+        SET score_status = 'gave_up'
+        WHERE source = ? AND url = ? AND survives = 1 AND llm_score IS NULL
+        """,
+        (job.source, job.url),
+    )
+    connection.commit()
+
+
 def get_pending_scores(connection: sqlite3.Connection) -> list["Job"]:
-    """Load surviving jobs that have not yet received a valid LLM score."""
+    """Load surviving jobs that have not yet received a score or terminal status."""
     from .models import Job
 
     rows = connection.execute(
         """
         SELECT source, source_job_id, title, company, location, url, posted_at, raw_text
         FROM jobs
-        WHERE survives = 1 AND llm_score IS NULL
+        WHERE survives = 1 AND llm_score IS NULL AND score_status IS NULL
         ORDER BY id
         """
     ).fetchall()
@@ -221,7 +252,8 @@ def get_scored_jobs(
     cursor = connection.execute(
         """
         SELECT source, source_job_id, title, company, location, url, posted_at,
-               llm_score, score_rationale, scored_at
+               llm_score, score_rationale, scored_at, reasons, missing_skills,
+               apply_priority
         FROM jobs
         WHERE survives = 1 AND llm_score IS NOT NULL AND scored_at LIKE ?
         ORDER BY llm_score DESC, title COLLATE NOCASE
@@ -229,4 +261,10 @@ def get_scored_jobs(
         (f"{timestamp_prefix}%",),
     )
     columns = [column[0] for column in cursor.description]
-    return [dict(zip(columns, row)) for row in cursor.fetchall()]
+    jobs = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    for job in jobs:
+        job["reasons"] = json.loads(job["reasons"]) if job["reasons"] else []
+        job["missing_skills"] = (
+            json.loads(job["missing_skills"]) if job["missing_skills"] else []
+        )
+    return jobs

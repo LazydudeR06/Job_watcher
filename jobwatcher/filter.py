@@ -1,6 +1,7 @@
 import json
 import logging
 import math
+import re
 from dataclasses import dataclass
 from typing import Iterable
 
@@ -21,8 +22,12 @@ INCLUDE_KEYWORDS = (
     "sde intern",
     "software engineering intern",
     "software engineer intern",
+    "ui designer",
+    "ux designer",
     "ui/ux designer",
     "ui ux designer",
+    "ui/ux",
+    "ui ux",
     "product designer",
     "graphic designer",
     "visual designer",
@@ -32,6 +37,29 @@ INCLUDE_KEYWORDS = (
     "desktop developer",
     "c# developer",
     "windows developer",
+)
+
+_REMOTE_LOCATION_RESTRICTIONS = (
+    re.compile(
+        r"\bmust\s+be\s+(?:located\s+)?in\s+(?:the\s+)?"
+        r"(?:u\.?s\.?a?\.?|united\s+states)"
+        r"(?:\s*(?:/|or|and)\s*(?:e\.?u\.?|europe))?\b"
+    ),
+    re.compile(
+        r"\b(?:u\.?s\.?a?\.?|united\s+states|e\.?u\.?|europe)"
+        r"(?:[\s-]+based)?"
+        r"(?:\s*(?:/|or|and)\s*(?:e\.?u\.?|europe))?[\s-]+only\b"
+    ),
+    re.compile(
+        r"\bonly\s+(?:in\s+)?(?:u\.?s\.?a?\.?|united\s+states|e\.?u\.?|europe)\b"
+    ),
+)
+
+_EXPERIENCE_YEARS = re.compile(r"\b(\d+)\s*\+?\s*(?:years?|yrs?)\b")
+_SENIORITY_REQUIREMENT = re.compile(
+    r"\b(?:mid(?:[- ]level)?|senior(?:[- ]level)?)\s+"
+    r"(?:role|position|level|experience|candidate|professional|engineer|developer|designer)\b"
+    r"|\bmid\s*/\s*senior\b"
 )
 
 EXCLUDE_KEYWORDS = (
@@ -174,12 +202,41 @@ def filter_job(
             return FilterDecision(False, 0.0, f"excluded work type: {keyword}", 0)
 
     location = (job.location or "").lower()
-    if "us-only" in location or "usa only" in location or "united states only" in location:
-        return FilterDecision(False, 0.0, "remote US-only location", 0)
-    if "eu-only" in location or "europe only" in location:
-        return FilterDecision(False, 0.0, "remote EU-only location", 0)
-
     remote = "remote" in location or "worldwide" in location or "anywhere" in location
+    remote_job = remote or any(
+        phrase in text
+        for phrase in ("remote", "worldwide", "work from anywhere")
+    )
+    restricted_remote = any(
+        pattern.search(text) for pattern in _REMOTE_LOCATION_RESTRICTIONS
+    )
+    restricted_location = any(
+        pattern.search(location) for pattern in _REMOTE_LOCATION_RESTRICTIONS
+    )
+    if restricted_remote and (remote_job or restricted_location):
+        if (
+            "us-only" in location
+            or "usa only" in location
+            or "united states only" in location
+        ):
+            reason = "remote US-only location"
+        elif "eu-only" in location or "europe only" in location:
+            reason = "remote EU-only location"
+        else:
+            reason = "remote location restricted to US/EU"
+        return FilterDecision(False, 0.0, reason, 0)
+
+    junior_title = bool(
+        re.search(r"\b(?:intern|junior|entry[- ]level|graduate|fresher)\b", title)
+    )
+    if not junior_title:
+        years_required = any(
+            int(match.group(1)) >= 3 for match in _EXPERIENCE_YEARS.finditer(text)
+        )
+        seniority_required = _SENIORITY_REQUIREMENT.search(job.raw_text or "") is not None
+        if years_required or seniority_required:
+            return FilterDecision(False, 0.0, "requires 3+ years or mid/senior experience", 0)
+
     on_site = "on-site" in location or "onsite" in location or "hybrid" in location
     if on_site and not remote:
         if not any(place in location for place in INDIAN_LOCATIONS):

@@ -41,6 +41,26 @@ def load_config(path: str | Path = "config.yaml") -> dict[str, Any]:
     if not isinstance(watcher, dict):
         raise ConfigError("The watcher section must be a mapping")
 
+    reports = config.setdefault("reports", {})
+    notifications = config.setdefault("notifications", {})
+    if not isinstance(reports, dict):
+        raise ConfigError("The reports section must be a mapping")
+    if not isinstance(notifications, dict):
+        raise ConfigError("The notifications section must be a mapping")
+    reports.setdefault("digest_min_score", 60)
+    notifications.setdefault("notification_min_score", 75)
+    for section, key in (
+        (reports, "digest_min_score"),
+        (notifications, "notification_min_score"),
+    ):
+        threshold = section[key]
+        if (
+            not isinstance(threshold, int)
+            or isinstance(threshold, bool)
+            or not 0 <= threshold <= 100
+        ):
+            raise ConfigError(f"{key} must be an integer from 0 to 100")
+
     required_sources = ("remotive", "remoteok", "himalayas", "adzuna")
     missing_sources = [name for name in required_sources if name not in sources]
     if missing_sources:
