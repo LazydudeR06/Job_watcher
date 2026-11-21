@@ -1,0 +1,114 @@
+{
+  "multipart_alert.eml": [
+    {
+      "source_job_id": "9001",
+      "title": "ML Platform Intern",
+      "company": "Acme AI",
+      "location": "Bengaluru, India",
+      "work_type": "Hybrid",
+      "flags": ["Easy Apply"],
+      "url": "https://www.linkedin.com/jobs/view/9001/"
+    },
+    {
+      "source_job_id": "9002",
+      "title": "DevOps Engineer",
+      "company": "Cloud Co",
+      "location": "Remote",
+      "work_type": "Remote",
+      "flags": ["Full-time"],
+      "url": "https://www.linkedin.com/jobs/view/9002/"
+    },
+    {
+      "source_job_id": "9003",
+      "title": "Forward Deployed Engineer",
+      "company": "Deploy Works",
+      "location": "New York · US",
+      "work_type": "On-site",
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9003/"
+    },
+    {
+      "source_job_id": "9004",
+      "title": "UI/UX Designer",
+      "company": "Pixel Studio",
+      "location": "Remote",
+      "work_type": null,
+      "flags": ["Promoted"],
+      "url": "https://www.linkedin.com/jobs/view/9004/"
+    },
+    {
+      "source_job_id": "9005",
+      "title": "Software Engineer, Intern",
+      "company": "Byte Labs",
+      "location": "Hyderabad",
+      "work_type": "Hybrid",
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9005/"
+    },
+    {
+      "source_job_id": "9006",
+      "title": "C++ & .NET Desktop Developer",
+      "company": "Window Systems",
+      "location": "Pune, India",
+      "work_type": "On-site",
+      "flags": ["Actively recruiting", "Easy Apply"],
+      "url": "https://www.linkedin.com/jobs/view/9006/"
+    }
+  ],
+  "plain_text_alert.eml": [
+    {
+      "source_job_id": "9101",
+      "title": "ML Research Intern",
+      "company": "Neural Works",
+      "location": "Remote",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9101/"
+    },
+    {
+      "source_job_id": "9102",
+      "title": "DevOps Engineer",
+      "company": "Stack Labs",
+      "location": "Bengaluru (Hybrid)",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9102/"
+    },
+    {
+      "source_job_id": "9103",
+      "title": "Forward Deployed Engineer",
+      "company": "Deploy Labs",
+      "location": "Remote",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9103/"
+    },
+    {
+      "source_job_id": "9104",
+      "title": "UX Designer",
+      "company": "Pixel Works",
+      "location": "Mumbai",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9104/"
+    },
+    {
+      "source_job_id": "9105",
+      "title": "Windows Desktop Developer",
+      "company": "Frame Systems",
+      "location": "Pune",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9105/"
+    },
+    {
+      "source_job_id": "9106",
+      "title": "Product Designer",
+      "company": "Studio One",
+      "location": "Hyderabad, India",
+      "work_type": null,
+      "flags": [],
+      "url": "https://www.linkedin.com/jobs/view/9106/"
+    }
+  ]
+}

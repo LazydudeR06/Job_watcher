@@ -14,6 +14,20 @@ sources:
     app_key_env: ADZUNA_APP_KEY
     country: in
     results_per_page: 50
+  linkedin:
+    enabled: false
+    imap_host_env: LINKEDIN_IMAP_HOST
+    username_env: LINKEDIN_IMAP_USERNAME
+    password_env: LINKEDIN_IMAP_PASSWORD
+    folder: INBOX
+    sender: jobalerts-noreply@linkedin.com
+  linkedin_email:
+    enabled: false
+    imap_host: imap.gmail.com
+    folder: INBOX
+    sender_filter: jobalerts-noreply@linkedin.com
+    max_emails_per_run: 50
+    lookback_days: 3
 
 outbound:
   enabled: false

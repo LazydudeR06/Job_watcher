@@ -1,7 +1,14 @@
 from dataclasses import dataclass
 
 
-SOURCE_VALUES = ("remotive", "remoteok", "himalayas", "adzuna")
+SOURCE_VALUES = (
+    "remotive",
+    "remoteok",
+    "himalayas",
+    "adzuna",
+    "linkedin",
+    "linkedin_email",
+)
 
 
 @dataclass(frozen=True)
@@ -16,6 +23,8 @@ class Job:
     url: str
     posted_at: str | None
     raw_text: str
+    work_type: str | None = None
+    flags: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if self.source not in SOURCE_VALUES:

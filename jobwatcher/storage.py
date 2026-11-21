@@ -15,7 +15,7 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
         """
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna')),
+            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna', 'linkedin', 'linkedin_email')),
             source_job_id TEXT NOT NULL,
             title TEXT NOT NULL,
             company TEXT,
@@ -23,6 +23,8 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
             url TEXT NOT NULL,
             posted_at TEXT,
             raw_text TEXT NOT NULL,
+            work_type TEXT,
+            flags TEXT NOT NULL DEFAULT '[]',
             UNIQUE(source, source_job_id)
         )
         """
@@ -43,6 +45,8 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
         "ALTER TABLE jobs ADD COLUMN reasons TEXT",
         "ALTER TABLE jobs ADD COLUMN missing_skills TEXT",
         "ALTER TABLE jobs ADD COLUMN apply_priority INTEGER",
+        "ALTER TABLE jobs ADD COLUMN work_type TEXT",
+        "ALTER TABLE jobs ADD COLUMN flags TEXT NOT NULL DEFAULT '[]'",
     ):
         try:
             connection.execute(statement)
@@ -52,14 +56,28 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
         "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobs'"
     ).fetchone()
     table_sql = table_row[0].lower() if table_row and table_row[0] else ""
-    if "check" in table_sql and "'adzuna'" not in table_sql:
+    if "check" in table_sql and (
+        "'adzuna'" not in table_sql
+        or "'linkedin'" not in table_sql
+        or "'linkedin_email'" not in table_sql
+    ):
         _migrate_jobs_source_constraint(connection)
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS processed_emails (
+            source TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            processed_at TEXT NOT NULL,
+            PRIMARY KEY (source, message_id)
+        )
+        """
+    )
     connection.commit()
     return connection
 
 
 def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
-    """Rebuild older jobs tables so Adzuna records pass the source constraint."""
+    """Rebuild older jobs tables so supported sources pass the source constraint."""
     columns = [
         row[1]
         for row in connection.execute("PRAGMA table_info(jobs)").fetchall()
@@ -69,7 +87,7 @@ def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
         """
         CREATE TABLE jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna')),
+            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna', 'linkedin', 'linkedin_email')),
             source_job_id TEXT NOT NULL,
             title TEXT NOT NULL,
             company TEXT,
@@ -77,6 +95,8 @@ def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
             url TEXT NOT NULL,
             posted_at TEXT,
             raw_text TEXT NOT NULL,
+            work_type TEXT,
+            flags TEXT NOT NULL DEFAULT '[]',
             processed INTEGER NOT NULL DEFAULT 0,
             survives INTEGER,
             similarity REAL,
@@ -106,6 +126,39 @@ def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS jobs_url_unique ON jobs(url)")
 
 
+def is_email_processed(
+    connection: sqlite3.Connection,
+    message_id: str,
+    source: str = "linkedin_email",
+) -> bool:
+    """Return whether an alert email Message-ID has already been processed."""
+    row = connection.execute(
+        "SELECT 1 FROM processed_emails WHERE source = ? AND message_id = ?",
+        (source, message_id),
+    ).fetchone()
+    return row is not None
+
+
+def mark_email_processed(
+    connection: sqlite3.Connection,
+    message_id: str,
+    source: str = "linkedin_email",
+) -> None:
+    """Record a successfully parsed email Message-ID idempotently."""
+    connection.execute(
+        """
+        INSERT OR IGNORE INTO processed_emails (source, message_id, processed_at)
+        VALUES (?, ?, ?)
+        """,
+        (
+            source,
+            message_id,
+            datetime.now().astimezone().isoformat(timespec="seconds"),
+        ),
+    )
+    connection.commit()
+
+
 def insert_jobs(connection: sqlite3.Connection, jobs: list["Job"]) -> list["Job"]:
     """Insert only new jobs, deduplicated by URL or source job ID."""
     from .models import Job
@@ -115,8 +168,9 @@ def insert_jobs(connection: sqlite3.Connection, jobs: list["Job"]) -> list["Job"
         cursor = connection.execute(
             """
             INSERT OR IGNORE INTO jobs
-                (source, source_job_id, title, company, location, url, posted_at, raw_text)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (source, source_job_id, title, company, location, url, posted_at,
+                 raw_text, work_type, flags)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.source,
@@ -127,6 +181,8 @@ def insert_jobs(connection: sqlite3.Connection, jobs: list["Job"]) -> list["Job"
                 job.url,
                 job.posted_at,
                 job.raw_text,
+                job.work_type,
+                json.dumps(job.flags, ensure_ascii=False),
             ),
         )
         if cursor.rowcount == 1:
@@ -172,13 +228,14 @@ def get_pending_filters(connection: sqlite3.Connection) -> list["Job"]:
 
     rows = connection.execute(
         """
-        SELECT source, source_job_id, title, company, location, url, posted_at, raw_text
+        SELECT source, source_job_id, title, company, location, url, posted_at,
+               raw_text, work_type, flags
         FROM jobs
         WHERE processed = 0 AND survives IS NULL
         ORDER BY id
         """
     ).fetchall()
-    return [Job(*row) for row in rows]
+    return [_job_from_row(row) for row in rows]
 
 
 def update_job_score(
@@ -235,13 +292,25 @@ def get_pending_scores(connection: sqlite3.Connection) -> list["Job"]:
 
     rows = connection.execute(
         """
-        SELECT source, source_job_id, title, company, location, url, posted_at, raw_text
+        SELECT source, source_job_id, title, company, location, url, posted_at,
+               raw_text, work_type, flags
         FROM jobs
         WHERE survives = 1 AND llm_score IS NULL AND score_status IS NULL
         ORDER BY id
         """
     ).fetchall()
-    return [Job(*row) for row in rows]
+    return [_job_from_row(row) for row in rows]
+
+
+def _job_from_row(row: tuple[Any, ...]) -> "Job":
+    """Rebuild a Job row, decoding optional LinkedIn metadata."""
+    from .models import Job
+
+    return Job(
+        *row[:8],
+        work_type=row[8],
+        flags=tuple(json.loads(row[9] or "[]")),
+    )
 
 
 def get_scored_jobs(

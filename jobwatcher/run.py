@@ -8,6 +8,8 @@ from typing import Sequence
 from .config import ConfigError, load_config
 from .collectors.adzuna import AdzunaCollector
 from .collectors.himalayas import HimalayasCollector
+from .collectors.linkedin_alerts import LinkedInAlertEmailCollector
+from .collectors.linkedin_email import LinkedInEmailCollector
 from .collectors.remotive import RemotiveCollector
 from .collectors.remoteok import RemoteOKCollector
 from .filter import filter_jobs
@@ -125,6 +127,58 @@ def main(argv: Sequence[str] | None = None) -> int:
                     adzuna_config["app_id_env"],
                     adzuna_config["app_key_env"],
                 )
+        linkedin_config = config["sources"].get("linkedin", {})
+        if linkedin_config.get("enabled"):
+            imap_host = os.getenv(
+                linkedin_config.get("imap_host_env", "LINKEDIN_IMAP_HOST")
+            )
+            username = os.getenv(
+                linkedin_config.get("username_env", "LINKEDIN_IMAP_USERNAME")
+            )
+            password = os.getenv(
+                linkedin_config.get("password_env", "LINKEDIN_IMAP_PASSWORD")
+            )
+            if imap_host and username and password:
+                collectors.append(
+                    LinkedInAlertEmailCollector(
+                        imap_host=imap_host,
+                        username=username,
+                        password=password,
+                        folder=linkedin_config.get("folder", "INBOX"),
+                        sender=linkedin_config.get(
+                            "sender",
+                            "jobalerts-noreply@linkedin.com",
+                        ),
+                    )
+                )
+            else:
+                LOGGER.warning(
+                    "LinkedIn alert collector is enabled but IMAP credentials are missing"
+                )
+        linkedin_email_config = config["sources"].get("linkedin_email", {})
+        if linkedin_email_config.get("enabled"):
+            collectors.append(
+                LinkedInEmailCollector(
+                    enabled=True,
+                    imap_host=linkedin_email_config.get(
+                        "imap_host",
+                        "imap.gmail.com",
+                    ),
+                    folder=linkedin_email_config.get("folder", "INBOX"),
+                    sender_filter=linkedin_email_config.get(
+                        "sender_filter",
+                        "jobalerts-noreply@linkedin.com",
+                    ),
+                    max_emails_per_run=linkedin_email_config.get(
+                        "max_emails_per_run",
+                        50,
+                    ),
+                    lookback_days=linkedin_email_config.get("lookback_days", 3),
+                    imap_user=os.getenv("IMAP_USER", ""),
+                    imap_app_password=os.getenv("IMAP_APP_PASSWORD", ""),
+                    connection=connection,
+                )
+            )
 
         def filter_unprocessed(jobs: list[Job]) -> None:
             if not jobs:

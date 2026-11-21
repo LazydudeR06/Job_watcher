@@ -73,6 +73,53 @@ def load_config(path: str | Path = "config.yaml") -> dict[str, Any]:
         if not isinstance(source_config["enabled"], bool):
             raise ConfigError(f"Source '{name}.enabled' must be a boolean")
 
+    linkedin = sources.get("linkedin")
+    if linkedin is not None:
+        if not isinstance(linkedin, dict) or not isinstance(
+            linkedin.get("enabled"), bool
+        ):
+            raise ConfigError("Source 'linkedin' must define an enabled boolean")
+        if linkedin["enabled"]:
+            for key, default in (
+                ("imap_host_env", "LINKEDIN_IMAP_HOST"),
+                ("username_env", "LINKEDIN_IMAP_USERNAME"),
+                ("password_env", "LINKEDIN_IMAP_PASSWORD"),
+            ):
+                env_name = linkedin.get(key, default)
+                if not isinstance(env_name, str) or not env_name.strip():
+                    raise ConfigError(f"sources.linkedin.{key} must be a non-empty string")
+                if not os.getenv(env_name):
+                    raise ConfigError(
+                        f"{env_name} is required when the LinkedIn source is enabled"
+                    )
+        sender = linkedin.get("sender", "jobalerts-noreply@linkedin.com")
+        if not isinstance(sender, str) or not sender.strip():
+            raise ConfigError("sources.linkedin.sender must be a non-empty string")
+
+    linkedin_email = sources.get("linkedin_email")
+    if linkedin_email is not None:
+        if not isinstance(linkedin_email, dict) or not isinstance(
+            linkedin_email.get("enabled"), bool
+        ):
+            raise ConfigError(
+                "Source 'linkedin_email' must define an enabled boolean"
+            )
+        linkedin_email.setdefault("imap_host", "imap.gmail.com")
+        linkedin_email.setdefault("folder", "INBOX")
+        linkedin_email.setdefault(
+            "sender_filter",
+            "jobalerts-noreply@linkedin.com",
+        )
+        linkedin_email.setdefault("max_emails_per_run", 50)
+        linkedin_email.setdefault("lookback_days", 3)
+        for key in ("imap_host", "folder", "sender_filter"):
+            if not isinstance(linkedin_email[key], str) or not linkedin_email[key].strip():
+                raise ConfigError(f"sources.linkedin_email.{key} must be a non-empty string")
+        for key in ("max_emails_per_run", "lookback_days"):
+            value = linkedin_email[key]
+            if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+                raise ConfigError(f"sources.linkedin_email.{key} must be a positive integer")
+
     if outbound.get("discord_webhook_env") != "DISCORD_WEBHOOK_URL":
         raise ConfigError("outbound.discord_webhook_env must be DISCORD_WEBHOOK_URL")
     if "enabled" not in outbound or not isinstance(outbound["enabled"], bool):

@@ -1,0 +1,57 @@
+From: LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>
+To: candidate@example.com
+Subject: An unrelated alert subject
+Message-ID: <linkedin-multipart-6@example.test>
+Date: Sat, 21 Nov 2026 15:30:00 +0000
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="linkedin-alert-boundary"
+
+--linkedin-alert-boundary
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+Plain-text alternative with six listings for the same alert.
+ML Platform Intern
+Acme AI · Bengaluru, India
+https://www.linkedin.com/jobs/view/9001/
+
+DevOps Engineer
+Cloud Co · Remote
+https://www.linkedin.com/jobs/view/9002/
+
+Forward Deployed Engineer
+Deploy Works · New York, US
+https://www.linkedin.com/jobs/view/9003/
+
+UI/UX Designer
+Pixel Studio · Remote
+https://www.linkedin.com/jobs/view/9004/
+
+Software Engineer, Intern
+Byte Labs · Hyderabad
+https://www.linkedin.com/jobs/view/9005/
+
+C++ & .NET Desktop Developer
+Window Systems · Pune, India
+https://www.linkedin.com/jobs/view/9006/
+--linkedin-alert-boundary
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: 8bit
+
+<html><body>
+<a href="https://www.linkedin.com/messaging/">Messaging</a>
+<a href="https://www.linkedin.com/mynetwork/">My Network</a>
+<table><tbody>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9001/?trk=alert&comm=mail">ML Platform Intern</a><p>Acme AI · Bengaluru, India (Hybrid)</p><p>Help build ML features for local search.</p><p class="job-card-flavor__detail">Easy Apply</p></td></tr>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9002?trackingId=abc&refId=mail">DevOps Engineer</a><p>Cloud Co · Remote (Remote)</p><p>Improve deployment reliability.</p><p class="job-card-flavor__detail">Full-time</p></td></tr>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9003/?comm=notification">Forward Deployed Engineer</a><p>Deploy Works · New York · US (On-site)</p><p>Partner with customers to launch products.</p></td></tr>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9004/">UI/UX Designer</a><p>Pixel Studio · Remote</p><p>Design accessible product experiences.</p><p class="job-card-flavor__detail">Promoted</p></td></tr>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9005?trk=mail">Software Engineer, Intern</a><p>Byte Labs · Hyderabad (Hybrid)</p><p>Contribute to backend services.</p></td></tr>
+<tr><td><a class="font-bold" href="https://www.linkedin.com/jobs/view/9006?trk=mail&comm=alert">C++ &amp; .NET Desktop Developer</a><p>Window Systems · Pune, India (On-site)</p><p>Build enterprise desktop tools.</p><p class="job-card-flavor__detail">Actively recruiting</p><p class="job-card-flavor__detail">Easy Apply</p></td></tr>
+</tbody></table>
+<a href="https://www.linkedin.com/notifications/">Notifications</a>
+<a href="https://www.linkedin.com/jobs/">See all jobs</a>
+<a href="https://www.linkedin.com/jobs/">Manage alerts</a>
+<a href="https://www.linkedin.com/premium/">Premium</a>
+</body></html>
+--linkedin-alert-boundary--

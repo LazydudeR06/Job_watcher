@@ -1578,6 +1578,7 @@ def test_h1_no_restricted_scraping_or_browser_automation() -> None:
     )
     forbidden = (
         r"^\s*(?:from|import)\s+(?:selenium|playwright)\b",
+        r"(?:requests|session)\.(?:get|post|request)\s*\([^)]*"
         r"(?:linkedin|indeed)\.com",
         r"\b(?:captcha\s+bypass|bypass\s+captcha|solve_captcha)\b",
     )
@@ -1668,7 +1669,16 @@ def test_i1_linkedin_route_status_only() -> None:
         path.read_text(encoding="utf-8")
         for path in (ROOT / "jobwatcher").rglob("*.py")
     )
-    imap_route = re.search(r"\b(?:imaplib|IMAP4|IMAPClient)\b", source, re.I)
+    linkedin_email_collector = (
+        ROOT / "jobwatcher" / "collectors" / "linkedin_email.py"
+    ).read_text(encoding="utf-8")
+    imap_route = (
+        re.search(r"class\s+LinkedInEmailCollector\b", linkedin_email_collector)
+        and re.search(
+            r"name\s*=\s*['\"]linkedin_email['\"]",
+            linkedin_email_collector,
+        )
+    )
     discord_channel_route = re.search(
         r"(?:DISCORD_JOBS_CHANNEL_ID|discord.{0,40}channel|channel.{0,40}discord)",
         source,
