@@ -1,19 +1,23 @@
 import argparse
 import logging
+import os
 import sqlite3
 from pathlib import Path
 from typing import Sequence
 
 from .config import ConfigError, load_config
+from .collectors.adzuna import AdzunaCollector
 from .collectors.himalayas import HimalayasCollector
 from .collectors.remotive import RemotiveCollector
 from .collectors.remoteok import RemoteOKCollector
 from .filter import filter_jobs
 from .logging_config import configure_logging
+from .models import Job
 from .reports import generate_reports
 from .scorer import score_job
 from .scheduler import run_forever
 from .storage import (
+    get_pending_filters,
     get_pending_scores,
     initialize_storage,
     insert_jobs,
@@ -100,49 +104,66 @@ def main(argv: Sequence[str] | None = None) -> int:
                     )
                 )
             )
+        adzuna_config = config["sources"]["adzuna"]
+        if adzuna_config["enabled"]:
+            app_id = os.getenv(adzuna_config["app_id_env"])
+            app_key = os.getenv(adzuna_config["app_key_env"])
+            if app_id and app_key:
+                collectors.append(
+                    AdzunaCollector(
+                        app_id=app_id,
+                        app_key=app_key,
+                        country=adzuna_config.get("country", "in"),
+                        results_per_page=adzuna_config.get("results_per_page", 50),
+                    )
+                )
+            else:
+                LOGGER.info(
+                    "Adzuna is disabled because %s and/or %s are not set",
+                    adzuna_config["app_id_env"],
+                    adzuna_config["app_key_env"],
+                )
+
+        def filter_unprocessed(jobs: list[Job]) -> None:
+            if not jobs:
+                return
+            profile_path = Path("profile.md")
+            profile_text = (
+                profile_path.read_text(encoding="utf-8")
+                if profile_path.is_file()
+                else ""
+            )
+            embeddings = config["embeddings"]
+            decisions = filter_jobs(
+                jobs,
+                profile_text,
+                backend=embeddings["backend"],
+                model=embeddings["model"],
+                ollama_url=embeddings["ollama_url"],
+                threshold=float(embeddings["similarity_threshold"]),
+            )
+            for job, decision in decisions:
+                if decision.survives is None:
+                    continue
+                update_filter_decision(
+                    connection,
+                    job,
+                    decision.survives,
+                    decision.similarity,
+                    decision.reason,
+                )
 
         def collect_once() -> None:
+            filter_unprocessed(get_pending_filters(connection))
             for collector in collectors:
                 jobs = collector.fetch()
                 inserted = insert_jobs(connection, jobs)
-                survivors = 0
-                if inserted:
-                    profile_path = Path("profile.md")
-                    profile_text = (
-                        profile_path.read_text(encoding="utf-8")
-                        if profile_path.is_file()
-                        else ""
-                    )
-                    embeddings = config["embeddings"]
-                    decisions = filter_jobs(
-                        inserted,
-                        profile_text,
-                        backend=embeddings["backend"],
-                        model=embeddings["model"],
-                        ollama_url=embeddings["ollama_url"],
-                        threshold=float(embeddings["similarity_threshold"]),
-                    )
-                    survivors = 0
-                    for job, decision in decisions:
-                        update_filter_decision(
-                            connection,
-                            job,
-                            decision.survives,
-                            decision.similarity,
-                            decision.reason,
-                        )
-                        if decision.survives:
-                            survivors += 1
+                filter_unprocessed(inserted)
                 if args.verbose:
                     print(
                         f"{collector.name}: fetched {len(jobs)} jobs, "
                         f"stored {len(inserted)} new jobs"
                     )
-                    if inserted:
-                        print(
-                            f"{collector.name}: filtered {len(inserted)} new jobs, "
-                            f"{survivors} survived"
-                        )
             score_config = config["scoring"]
             profile_path = Path("profile.md")
             profile_text = (

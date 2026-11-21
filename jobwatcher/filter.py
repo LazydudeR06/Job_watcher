@@ -65,7 +65,7 @@ INDIAN_LOCATIONS = (
 class FilterDecision:
     """Result of filtering one collected job."""
 
-    survives: bool
+    survives: bool | None
     similarity: float
     reason: str
     rank: int
@@ -134,7 +134,7 @@ def embed_text(text: str, backend: str, model: str, ollama_url: str) -> list[flo
             ):
                 return [float(value) for value in embedding]
         except requests.RequestException as exc:
-            LOGGER.warning("Ollama embedding unavailable: %s", exc)
+            LOGGER.warning("Embeddings are unreachable: %s", exc)
         except (ValueError, json.JSONDecodeError) as exc:
             LOGGER.warning("Ollama returned invalid embedding data: %s", exc)
         return None
@@ -199,7 +199,7 @@ def filter_job(
         ollama_url,
     )
     if profile_embedding is None or job_embedding is None:
-        return FilterDecision(False, 0.0, "embedding backend unavailable", 0)
+        return FilterDecision(None, 0.0, "embedding backend unavailable", 0)
 
     similarity = cosine_similarity(profile_embedding, job_embedding)
     if similarity >= threshold:

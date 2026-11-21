@@ -64,8 +64,16 @@ def load_config(path: str | Path = "config.yaml") -> dict[str, Any]:
     if adzuna["enabled"]:
         if adzuna.get("app_id_env") != "ADZUNA_APP_ID" or adzuna.get("app_key_env") != "ADZUNA_APP_KEY":
             raise ConfigError("Adzuna environment names must be ADZUNA_APP_ID and ADZUNA_APP_KEY")
-        if not os.getenv("ADZUNA_APP_ID") or not os.getenv("ADZUNA_APP_KEY"):
-            raise ConfigError("ADZUNA_APP_ID and ADZUNA_APP_KEY are required when Adzuna is enabled")
+        country = adzuna.get("country", "in")
+        if not isinstance(country, str) or not country.strip():
+            raise ConfigError("sources.adzuna.country must be a non-empty string")
+        results_per_page = adzuna.get("results_per_page", 50)
+        if (
+            not isinstance(results_per_page, int)
+            or isinstance(results_per_page, bool)
+            or not 1 <= results_per_page <= 50
+        ):
+            raise ConfigError("sources.adzuna.results_per_page must be an integer from 1 to 50")
 
     interval = watcher.get("interval_seconds")
     if not isinstance(interval, int) or isinstance(interval, bool) or interval < 1:

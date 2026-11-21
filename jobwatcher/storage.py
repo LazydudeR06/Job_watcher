@@ -14,7 +14,7 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
         """
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas')),
+            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna')),
             source_job_id TEXT NOT NULL,
             title TEXT NOT NULL,
             company TEXT,
@@ -43,8 +43,58 @@ def initialize_storage(database_path: str | Path = "data/jobs.db") -> sqlite3.Co
             connection.execute(statement)
         except sqlite3.OperationalError:
             pass
+    table_row = connection.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'jobs'"
+    ).fetchone()
+    table_sql = table_row[0].lower() if table_row and table_row[0] else ""
+    if "check" in table_sql and "'adzuna'" not in table_sql:
+        _migrate_jobs_source_constraint(connection)
     connection.commit()
     return connection
+
+
+def _migrate_jobs_source_constraint(connection: sqlite3.Connection) -> None:
+    """Rebuild older jobs tables so Adzuna records pass the source constraint."""
+    columns = [
+        row[1]
+        for row in connection.execute("PRAGMA table_info(jobs)").fetchall()
+    ]
+    connection.execute("ALTER TABLE jobs RENAME TO jobs_before_adzuna")
+    connection.execute(
+        """
+        CREATE TABLE jobs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL CHECK (source IN ('remotive', 'remoteok', 'himalayas', 'adzuna')),
+            source_job_id TEXT NOT NULL,
+            title TEXT NOT NULL,
+            company TEXT,
+            location TEXT,
+            url TEXT NOT NULL,
+            posted_at TEXT,
+            raw_text TEXT NOT NULL,
+            processed INTEGER NOT NULL DEFAULT 0,
+            survives INTEGER,
+            similarity REAL,
+            filter_reason TEXT,
+            llm_score INTEGER,
+            score_rationale TEXT,
+            score_json TEXT,
+            scored_at TEXT,
+            UNIQUE(source, source_job_id)
+        )
+        """
+    )
+    new_columns = [
+        row[1]
+        for row in connection.execute("PRAGMA table_info(jobs)").fetchall()
+    ]
+    shared_columns = [column for column in columns if column in new_columns]
+    column_sql = ", ".join(f'"{column}"' for column in shared_columns)
+    connection.execute(
+        f"INSERT INTO jobs ({column_sql}) SELECT {column_sql} FROM jobs_before_adzuna"
+    )
+    connection.execute("DROP TABLE jobs_before_adzuna")
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS jobs_url_unique ON jobs(url)")
 
 
 def insert_jobs(connection: sqlite3.Connection, jobs: list["Job"]) -> list["Job"]:
@@ -79,11 +129,14 @@ def insert_jobs(connection: sqlite3.Connection, jobs: list["Job"]) -> list["Job"
 def update_filter_decision(
     connection: sqlite3.Connection,
     job: "Job",
-    survives: bool,
+    survives: bool | None,
     similarity: float,
     reason: str,
 ) -> None:
-    """Persist processing and filter decision fields for a collected job."""
+    """Persist a completed filter decision; leave transient failures pending."""
+    if survives is None:
+        return
+
     connection.execute(
         """
         UPDATE jobs
@@ -102,6 +155,21 @@ def update_filter_decision(
         ),
     )
     connection.commit()
+
+
+def get_pending_filters(connection: sqlite3.Connection) -> list["Job"]:
+    """Load unprocessed jobs that still need a filter decision."""
+    from .models import Job
+
+    rows = connection.execute(
+        """
+        SELECT source, source_job_id, title, company, location, url, posted_at, raw_text
+        FROM jobs
+        WHERE processed = 0 AND survives IS NULL
+        ORDER BY id
+        """
+    ).fetchall()
+    return [Job(*row) for row in rows]
 
 
 def update_job_score(

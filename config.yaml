@@ -12,6 +12,8 @@ sources:
     enabled: false
     app_id_env: ADZUNA_APP_ID
     app_key_env: ADZUNA_APP_KEY
+    country: in
+    results_per_page: 50
 
 outbound:
   enabled: false

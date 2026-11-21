@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-SOURCE_VALUES = ("remotive", "remoteok", "himalayas")
+SOURCE_VALUES = ("remotive", "remoteok", "himalayas", "adzuna")
 
 
 @dataclass(frozen=True)

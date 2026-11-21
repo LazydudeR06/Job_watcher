@@ -1,23 +1,12 @@
-# Secrets
 .env
-profile.md
-
-# Python
 __pycache__/
 *.py[cod]
 .venv/
-venv/
-
-# Local database
-/data/*.db
-
-# Generated reports and logs
-/output/*
-!/output/digests/
-/output/digests/*
-!/output/digests/.gitkeep
-!/output/hourly/
-/output/hourly/*
-!/output/hourly/.gitkeep
-/logs/*
-!/logs/.gitkeep
+data/*.db
+output/*
+!output/digests/
+!output/digests/.gitkeep
+!output/hourly/
+!output/hourly/.gitkeep
+logs/*
+!logs/.gitkeep
